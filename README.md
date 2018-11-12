@@ -1,7 +1,8 @@
 # SCD30
 
-Software to read out SCD30 values on Raspberry Pi
+Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors-co2/) CO2 Sensor values on Raspberry Pi.
 
+This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com) (https://unraveltec.com), 2018.
 
 ## Prerequsites 
 
@@ -30,7 +31,7 @@ systemctl restart pigpiod
 pigs hwver
 ```
 
-## I2C Clock stretching
+### I2C Clock stretching
 
 Master needs to support Clock Stretching up to 150ms. The default in Raspbian is too low, we have to increase it:
 
