@@ -70,6 +70,7 @@ if read_meas_interval() != 2:
 
 
 #trigger cont meas
+# TODO read out current pressure value
 pressure_mbar = 972
 LSB = 0xFF & pressure_mbar
 MSB = 0xFF & (pressure_mbar >> 8)
