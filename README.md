@@ -50,7 +50,7 @@ gcc -o i2c1_get_clkt_tout i2c1_get_clkt_tout.c
 execute (add to /etc/rc.local to run on every boot):
 
 ```
-./i2c1_set_clkt_tout 20000 for 200ms
+./i2c1_set_clkt_tout 20000 # for 200ms
 ```
 
 Remember: Maximum I2C speed for SCD30 is 100kHz.
