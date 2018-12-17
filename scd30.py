@@ -72,7 +72,7 @@ def read_n_bytes(n):
     return data
   else:
     eprint("error: read measurement interval didnt return " + str(n) + "B")
-    return -1
+    return False
 
 def i2cWrite(data):
   try:
@@ -146,6 +146,10 @@ while True:
     exit(1)
 
   data = read_n_bytes(3)
+  if data == False:
+    time.sleep(0.1)
+    continue
+
   if data[1] == 1:
     #print "data ready"
     break
