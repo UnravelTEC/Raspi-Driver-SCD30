@@ -1,6 +1,6 @@
 # SCD30 I2C
 
-Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors-co2/) CO2 Sensor values over I2C on Raspberry Pi.
+Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors-co2/) CO₂ Sensor values over I2C on Raspberry Pi.
 
 This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com) (https://unraveltec.com), 2018.
 
