@@ -134,11 +134,11 @@ struct_rH = struct.pack('>BBBB', data[12], data[13], data[15], data[16])
 float_rH = struct.unpack('>f', struct_rH)
 
 if float_co2 > 0.0:
-  print("scd30_co2 %f" % float_co2)
+  print("gas_ppm{sensor=\"SCD30\",gas=\"CO2\"} %f" % float_co2)
 
-print("scd30_T %f" % float_T)
+print("temperature_degC{sensor=\"SCD30\"} %f" % float_T)
 
 if float_rH > 0.0:
-  print("scd30_rH %f" % float_rH)
+  print("humidity_rel_percent{sensor=\"SCD30\"} %f" % float_rH)
 
 pi.i2c_close(h)
