@@ -52,21 +52,47 @@ except:
   if sys.exc_value and str(sys.exc_value) != "'unknown handle'":
     eprint("Unknown error: ", sys.exc_type, ":", sys.exc_value)
 
-h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
+try:
+	h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
+except:
+	eprint("i2c open failed")
+	exit(1)
 
 # read meas interval (not documented, but works)
 
 def read_n_bytes(n):
-  (count, data) = pi.i2c_read_device(h, n)
+
+  try:
+		(count, data) = pi.i2c_read_device(h, n)
+  except:
+    eprint("error: i2c_read failed")
+    exit(1)
+
   if count == n:
     return data
   else:
     eprint("error: read measurement interval didnt return " + str(n) + "B")
+    return False
+
+def i2cWrite(data):
+  try:
+    pi.i2c_write_device(h, data)
+  except:
+    eprint("error: i2c_write failed")
     return -1
+  return True
+
 
 def read_meas_interval():
-  pi.i2c_write_device(h, [0x46, 0x00])
-  (count, data) = pi.i2c_read_device(h, 3)
+  ret = i2cWrite([0x46, 0x00])
+  if ret == -1:
+    return -1
+
+  try:
+    (count, data) = pi.i2c_read_device(h, 3)
+  except:
+    eprint("error: i2c_read failed")
+    exit(1)
 
   if count == 3:
     if len(data) == 3:
@@ -80,10 +106,16 @@ def read_meas_interval():
   
   return -1
 
-if read_meas_interval() != 2:
+read_meas_result = read_meas_interval()
+if read_meas_result == -1:
+  exit(1)
+
+if read_meas_result != 2:
 # if not every 2s, set it
   eprint("setting interval to 2")
-  pi.i2c_write_device(h, [0x46, 0x00, 0x00, 0x02, 0xE3])
+  ret = i2cWrite([0x46, 0x00, 0x00, 0x02, 0xE3])
+  if ret == -1:
+    exit(1)
   read_meas_interval()
 
 
@@ -105,12 +137,19 @@ f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
 
 crc8 = f_crc8(pressure_array) # for pressure 0, should be 0x81
 # print "CRC: " + hex(crc8)
-pi.i2c_write_device(h, [0x00, 0x10, pressure[0], pressure[1], crc8])
+i2cWrite([0x00, 0x10, pressure[0], pressure[1], crc8])
 
 # read ready status
 while True:
-  pi.i2c_write_device(h, [0x02, 0x02]) #fixme throws if two processes are running in paralell
+  ret = i2cWrite([0x02, 0x02])
+  if ret == -1:
+    exit(1)
+
   data = read_n_bytes(3)
+  if data == False:
+    time.sleep(0.1)
+    continue
+
   if data[1] == 1:
     #print "data ready"
     break
@@ -119,7 +158,7 @@ while True:
     time.sleep(0.1)
 
 #read measurement
-pi.i2c_write_device(h, [0x03, 0x00])
+i2cWrite([0x03, 0x00])
 data = read_n_bytes(18)
   
 #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])

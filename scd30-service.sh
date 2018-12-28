@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 # reads out scd30 co2 sensor periodically
 
 # Copyright © 2018 UnravelTEC
@@ -39,12 +39,31 @@ if [ "$($i2c_clk_tm_getter)" != "i2c1_get_clkt_tout: CLKT.TOUT = 20000" ]; then
   $i2c_clk_tm_setter 20000
 fi
 
+errorcounter=0
+
 while true; do
   
   buffercontent=""
   buffercontent=$($bin)
-  sleep 2
+  if [[ "$?" == "1" ]]; then
+    let errorcounter=errorcounter+1
+    echo "readout of sensorval failed"
+  else
+    errorcounter=0
+  fi
 
-  echo "$buffercontent" > ${buffer}
+  if [[ "$errorcounter" = "3" ]]; then
+    echo "read value 3 times failed, sleep 1m"
+    errorcounter=0
+    sleep 60
+  fi
+
+  if [[ "$buffercontent" ]]; then
+    echo "$buffercontent" > ${buffer}
+  else
+    rm -rf ${buffer}
+  fi
+
+  sleep 2
 
 done
