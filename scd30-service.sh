@@ -19,7 +19,9 @@
 #
 # If you want to relicense this code under another license, please contact info+github@unraveltec.com.
 
-buffer=/run/scd30
+datadir=/run/sensors/scd30
+buffer=$datadir/last
+
 bin=/usr/local/bin/scd30.py
 
 i2c_clk_tm_getter=/usr/local/bin/i2c1_get_clkt_tout
@@ -31,8 +33,7 @@ function finish {
 
 trap finish EXIT
 
-touch ${buffer}
-chown www-data ${buffer}
+mkdir -p $datadir
 
 if [ "$($i2c_clk_tm_getter)" != "i2c1_get_clkt_tout: CLKT.TOUT = 20000" ]; then
   echo "setting i2c clock stretch timeout to 200ms"
