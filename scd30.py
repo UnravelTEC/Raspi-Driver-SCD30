@@ -154,7 +154,7 @@ while True:
     #print "data ready"
     break
   else:
-    eprint(".")
+    #eprint(".")
     time.sleep(0.1)
 
 #read measurement
