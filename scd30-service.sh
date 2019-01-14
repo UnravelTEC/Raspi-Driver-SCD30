@@ -33,6 +33,13 @@ function finish {
 
 trap finish EXIT
 
+i2cdevs=$(i2cdetect -y 1|grep -o 61)
+if [ ! "$i2cdevs" ]; then
+  echo "error: Sensor not found on i2c bus, exiting"
+  exit 1
+fi
+
+
 mkdir -p $datadir
 
 if [ "$($i2c_clk_tm_getter)" != "i2c1_get_clkt_tout: CLKT.TOUT = 20000" ]; then
