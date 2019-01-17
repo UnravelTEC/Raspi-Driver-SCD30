@@ -163,6 +163,8 @@ data = read_n_bytes(18)
   
 #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
+if data == False:
+  exit(1)
 struct_co2 = struct.pack('>BBBB', data[0], data[1], data[3], data[4])
 float_co2 = struct.unpack('>f', struct_co2)
 
