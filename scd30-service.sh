@@ -33,8 +33,8 @@ function finish {
 
 trap finish EXIT
 
-i2cdevs=$(i2cdetect -y 1|grep -o 61)
-if [ ! "$i2cdevs" ]; then
+result=$(i2cset -y 1 0x61 0x02 0x02)
+if [[ "$?" == "1" ]]; then
   echo "error: Sensor not found on i2c bus, exiting"
   exit 1
 fi
