@@ -1,5 +1,5 @@
 #!/bin/bash
-# reads out scd30 co2 sensor periodically
+# installs scd30 co2 sensor daemon and start it
 
 # Copyright © 2018 UnravelTEC
 # Michael Maier <michael.maier+github@unraveltec.com>
@@ -19,6 +19,10 @@
 #
 # If you want to relicense this code under another license, please contact info+github@unraveltec.com.
 
-buffer=/run/scd30
-bin=/usr/local/bin/scd30.py
+rsync -ravxbc scd30.py /usr/local/bin/ 
+rsync -ravxbc scd30-service.sh /usr/local/bin/ 
 
+rsync -ravxbc scd30.service /etc/systemd/system/
+
+systemctl enable scd30
+systemctl restart scd30
