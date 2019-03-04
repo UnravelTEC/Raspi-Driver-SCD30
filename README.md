@@ -6,6 +6,9 @@ This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com)
 
 ## Prerequsites
 
+### Enable I2C interface on Raspberry Pi
+`sudo raspi-config` navigate to `P5 I2C` and select `<Yes>`.
+
 ### Wiring SCD30 to Raspberry Pi 3 B
 - SCD30: RX/SDA -> Pi: I2C1 SDA (GPIO2)
 - SCD30: TX/SCL -> Pi: I2C1 SCL (GPIO3)
