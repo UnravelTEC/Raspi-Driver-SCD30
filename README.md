@@ -6,7 +6,7 @@ This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com)
 
 ## Prerequsites
 
-### Wiring example of the SCD30 to Raspberry Pi 3 B
+### Wiring SCD30 to Raspberry Pi 3 B
 - SCD30: RX/SDA -> Pi: I2C1 SDA (GPIO2)
 - SCD30: TX/SCL -> Pi: I2C1 SCL (GPIO3)
 - SCD30: VIN -> Pi: 3.3V/5.5V (use one of PWR pinouts)
