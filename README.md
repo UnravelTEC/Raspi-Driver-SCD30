@@ -4,6 +4,12 @@ Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmenta
 
 This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com) (https://unraveltec.com), 2018.
 
+### Wiring example of the SCD30 to Raspberry Pi 3 B
+SCD30: RX/SDA -> Pi: I2C1 SDA (GPIO2)
+SCD30: TX/SCL -> Pi: I2C1 SCL (GPIO3)
+SCD30: VIN -> Pi: 3.3V/5.5V (use one of PWR pinouts)
+SCD30: GND -> Pi: GND (use one of GND pinouts)
+
 ## Prerequsites
 
 You might need to run the following commands as root e.g. by typing `sudo` before running a specific command.
