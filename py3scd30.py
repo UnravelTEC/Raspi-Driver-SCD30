@@ -137,7 +137,7 @@ pressure_array = ''.join(chr(x) for x in [pressure[0], pressure[1]])
 f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
 
 #print("CRC: " + hex(f_crc8))
-i2cWrite([0x00, 0x10, pressure[0], pressure[1], f_crc8])
+i2cWrite([0x00, 0x10, pressure[0], pressure[1], f_crc8(b'123456789')])
 
 # read ready status
 while True:
