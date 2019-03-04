@@ -4,9 +4,11 @@ Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmenta
 
 This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com) (https://unraveltec.com), 2018.
 
-## Prerequsites 
+## Prerequsites
 
-### Python 
+You might need to run the following commands as root e.g. by typing `sudo` before running a specific command.
+
+### Python
 
 Install the following python-libraries:
 
@@ -56,6 +58,8 @@ execute (add to /etc/rc.local to run on every boot):
 Remember: Maximum I2C speed for SCD30 is 100kHz.
 
 # Run program
+
+You might need to run the following as root e.g. by typing `sudo` before running the script.
 
 ```
 python scd30.py
