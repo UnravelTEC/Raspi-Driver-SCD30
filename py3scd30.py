@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 #
 # Copyright © 2018 UnravelTEC
@@ -23,13 +23,13 @@
 
 from __future__ import print_function
 
-# This module uses the services of the C pigpio library. pigpio must be running on the Pi(s) whose GPIO are to be manipulated. 
+# This module uses the services of the C pigpio library. pigpio must be running on the Pi(s) whose GPIO are to be manipulated.
 # cmd ref: http://abyz.me.uk/rpi/pigpio/python.html#i2c_write_byte_data
-import pigpio # aptitude install python-pigpio
+import pigpio # aptitude install python3-pigpio
 import time
 import struct
 import sys
-import crcmod # aptitude install python-crcmod
+import crcmod # aptitude install python3-crcmod
 
 
 def eprint(*args, **kwargs):
@@ -49,8 +49,8 @@ I2C_BUS = 1
 try:
   pi.i2c_close(0)
 except:
-  if sys.exc_value and str(sys.exc_value) != "'unknown handle'":
-    eprint("Unknown error: ", sys.exc_type, ":", sys.exc_value)
+  if sys.exc_info()[1] and str(sys.exc_info()[1]) != "'unknown handle'":
+    eprint("Unknown error: ", sys.exc_type, ":", sys.exc_info()[1])
 
 try:
   h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
@@ -103,7 +103,7 @@ def read_meas_interval():
       eprint("error: no array len 3 returned, instead " + str(len(data)) + "type: " + str(type(data)))
   else:
     "error: read measurement interval didnt return 3B"
-  
+
   return -1
 
 read_meas_result = read_meas_interval()
@@ -130,14 +130,14 @@ MSB = 0xFF & (pressure_mbar >> 8)
 pressure = [MSB, LSB]
 
 pressure_array = ''.join(chr(x) for x in [pressure[0], pressure[1]])
+
 #pressure_array = ''.join(chr(x) for x in [0xBE, 0xEF]) # use for testing crc, should be 0x92
-#print pressure_array
+#print(pressure_array)
 
 f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
 
-crc8 = f_crc8(pressure_array) # for pressure 0, should be 0x81
-# print "CRC: " + hex(crc8)
-i2cWrite([0x00, 0x10, pressure[0], pressure[1], crc8])
+#print("CRC: " + hex(f_crc8))
+i2cWrite([0x00, 0x10, pressure[0], pressure[1], f_crc8(b'123456789')])
 
 # read ready status
 while True:
@@ -160,19 +160,17 @@ while True:
 #read measurement
 i2cWrite([0x03, 0x00])
 data = read_n_bytes(18)
-  
+
 #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
-if data == False:
-  exit(1)
 struct_co2 = struct.pack('>BBBB', data[0], data[1], data[3], data[4])
-float_co2 = struct.unpack('>f', struct_co2)
+float_co2 = struct.unpack('>f', struct_co2)[0]
 
 struct_T = struct.pack('>BBBB', data[6], data[7], data[9], data[10])
 float_T = struct.unpack('>f', struct_T)
 
 struct_rH = struct.pack('>BBBB', data[12], data[13], data[15], data[16])
-float_rH = struct.unpack('>f', struct_rH)
+float_rH = struct.unpack('>f', struct_rH)[0]
 
 if float_co2 > 0.0:
   print("gas_ppm{sensor=\"SCD30\",gas=\"CO2\"} %f" % float_co2)
