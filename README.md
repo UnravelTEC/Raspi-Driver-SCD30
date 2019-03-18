@@ -4,15 +4,28 @@ Software to read out [Sensirion SCD30](https://www.sensirion.com/en/environmenta
 
 This software is licenced under GPLv3 by [UnravelTEC OG](https://unraveltec.com) (https://unraveltec.com), 2018.
 
-## Prerequsites 
+## Prerequisites
 
-### Python 
+You might need to run the following commands as root e.g. by typing `sudo` before running a specific command.
+
+### Enable I2C interface on Raspberry Pi
+`raspi-config` navigate to `P5 I2C` and select `<Yes>`.
+
+### Wiring SCD30 to Raspberry Pi 3 B
+- SCD30: RX/SDA -> Pi: I2C1 SDA (GPIO2)
+- SCD30: TX/SCL -> Pi: I2C1 SCL (GPIO3)
+- SCD30: VIN -> Pi: 3.3V/5.5V (use one of PWR pinouts)
+- SCD30: GND -> Pi: GND (use one of GND pinouts)
+
+### Python
 
 Install the following python-libraries:
 
 ```
 aptitude install python-crcmod
 ```
+
+(for Python3, use the appropriate prefix)
 
 ### Pigpiod
 
@@ -57,6 +70,8 @@ Remember: Maximum I2C speed for SCD30 is 100kHz.
 
 # Run program
 
+You might need to run the following as root e.g. by typing `sudo` before running the script.
+
 For a one-time output:
 ```
 python scd30-once.py
@@ -67,4 +82,6 @@ python scd30-once.py
 ```
 ./install.sh
 ```
-the service writes a file /run/sensor/scd30/last (which resides in RAM) - it is meant to be read out by prometheus.
+the service writes a file `/run/sensor/scd30/last` (which resides in RAM) - it is meant to be read out by prometheus.
+
+To use pressure compensation, provide the pressure in a file named e.g. `/run/sensor/bme280/last` - for details see the source code in the service.py
