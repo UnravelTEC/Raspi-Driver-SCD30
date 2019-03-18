@@ -38,7 +38,8 @@ def eprint(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
 
 SENSOR_FOLDER = '/run/sensors/'
-LOGFILE = SENSOR_FOLDER + 'scd30/last'
+SENSOR_NAME = 'scd30'
+LOGFILE = SENSOR_FOLDER + SENSOR_NAME + '/last'
 PRESSURE_SENSORS = ['bme280', 'bme680']
 
 PIGPIO_HOST = '127.0.0.1'
@@ -48,14 +49,13 @@ I2C_BUS = 1
 
 deviceOnI2C = call("i2cdetect -y 1 0x61 0x61|grep '\--' -q", shell=True) # grep exits 0 if match found
 if deviceOnI2C:
-  print("I2Cdetect found SCD30")
+  print("I2Cdetect found " + SENSOR_NAME)
 else:
-  print("SCD30 (0x61) not found on I2C bus")
+  print(SENSOR_NAME + " (0x61) not found on I2C bus")
   exit(1)
 
 def exit_gracefully(a,b):
   print("exit")
-  #stopMeasurement()
   os.path.isfile(LOGFILE) and os.access(LOGFILE, os.W_OK) and os.remove(LOGFILE)
   pi.i2c_close(h)
   exit(0)
@@ -78,12 +78,12 @@ except:
     eprint("Unknown error: ", sys.exc_type, ":", sys.exc_value)
 
 try:
-	h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
+  h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
 except:
-	eprint("i2c open failed")
-	exit(1)
+  eprint("i2c open failed")
+  exit(1)
 
-call(["mkdir", "-p", "/run/sensors/scd30"])
+call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
 
 f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
 def calcCRC(TwoBdataArray):
@@ -94,7 +94,7 @@ def calcCRC(TwoBdataArray):
 
 def read_n_bytes(n):
   try:
-		(count, data) = pi.i2c_read_device(h, n)
+    (count, data) = pi.i2c_read_device(h, n)
   except:
     eprint("error: i2c_read failed")
     exit(1)
@@ -134,17 +134,18 @@ def read_meas_interval():
     else:
       eprint("error: no array len 3 returned, instead " + str(len(data)) + "type: " + str(type(data)))
   else:
-    "error: read measurement interval didnt return 3B"
+    eprint("error: read measurement interval didnt return 3B")
   
   return -1
 
 read_meas_result = read_meas_interval()
 if read_meas_result == -1:
+  eprint("read_meas_interval unsuccessful")
   exit(1)
 
 if read_meas_result != 1:
-# if not every 2s, set it
-  eprint("setting interval to 1")
+# if not every 1s, set it
+  print("setting interval to 1")
   ret = i2cWrite([0x46, 0x00, 0x00, 0x01, calcCRC([0x00, 0x01])])
   if ret == -1:
     exit(1)
@@ -157,9 +158,8 @@ def calcFloat(sixBArray):
   first = float_values[0]
   return first
 
-pressure_mbar = 972
+pressure_mbar = 972 # 300 metres above sea level
 while True:
-  # TODO read out current pressure value
   for sensor in PRESSURE_SENSORS: 
     pressure_filename = SENSOR_FOLDER + sensor + '/last'
     current_pressure = 0
@@ -171,10 +171,11 @@ while True:
           if len(line_array) > 1:
             current_pressure = int(float(line_array[1]))
             if current_pressure > 300:
-              pressure_mbar = current_pressure
               break
       if current_pressure > 300:
-        print(current_pressure)
+        if pressure_mbar != current_pressure:
+          print('pressure compensation changed from', pressure_mbar,'to', current_pressure)
+          pressure_mbar = current_pressure
         break
 
   LSB = 0xFF & pressure_mbar
