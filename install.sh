@@ -19,10 +19,16 @@
 #
 # If you want to relicense this code under another license, please contact info+github@unraveltec.com.
 
-rsync -ravxbc scd30.py /usr/local/bin/ 
-rsync -ravxbc scd30-service.sh /usr/local/bin/ 
+targetdir=/usr/local/bin/
 
-rsync -ravxbc scd30.service /etc/systemd/system/
+mkdir -p $targetdir 
 
-systemctl enable scd30
-systemctl restart scd30
+exe1=scd30-service.py
+serv1=scd30.service
+
+rsync -raxc --info=name $exe1 $targetdir
+
+rsync -raxc --info=name $serv1 /etc/systemd/system/
+
+systemctl enable $serv1 && echo "systemctl enable $serv1 OK"
+systemctl restart $serv1 && echo "systemctl restart $serv1 OK"

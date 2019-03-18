@@ -4,7 +4,7 @@ Description=SCD30 CO2/rH/T sensor
 [Service]
 User=root
 Restart=always
-ExecStart=/usr/local/bin/scd30-service.sh
+ExecStart=/usr/local/bin/scd30-service.py
 
 [Install]
 WantedBy=multi-user.target
