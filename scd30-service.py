@@ -37,7 +37,9 @@ from subprocess import call
 def eprint(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
 
-LOGFILE = '/run/sensors/scd30/last'
+SENSOR_FOLDER = '/run/sensors/'
+LOGFILE = SENSOR_FOLDER + 'scd30/last'
+PRESSURE_SENSORS = ['bme280', 'bme680']
 
 PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
@@ -155,9 +157,26 @@ def calcFloat(sixBArray):
   first = float_values[0]
   return first
 
+pressure_mbar = 972
 while True:
   # TODO read out current pressure value
-  pressure_mbar = 972
+  for sensor in PRESSURE_SENSORS: 
+    pressure_filename = SENSOR_FOLDER + sensor + '/last'
+    current_pressure = 0
+    if os.path.isfile(pressure_filename):
+      pressure_file = open(pressure_filename,'r')
+      for line in pressure_file:
+        if line.startswith('pressure_hPa'):
+          line_array = line.split()
+          if len(line_array) > 1:
+            current_pressure = int(float(line_array[1]))
+            if current_pressure > 300:
+              pressure_mbar = current_pressure
+              break
+      if current_pressure > 300:
+        print(current_pressure)
+        break
+
   LSB = 0xFF & pressure_mbar
   MSB = 0xFF & (pressure_mbar >> 8)
 
@@ -189,16 +208,9 @@ while True:
 
   if data == False:
     exit(1)
-#  struct_co2 = struct.pack('>BBBB', data[0], data[1], data[3], data[4])
-#  float_co2 = struct.unpack('>f', struct_co2)
+
   float_co2 = calcFloat(data[0:5])
-
-#  struct_T = struct.pack('>BBBB', data[6], data[7], data[9], data[10])
-#  float_T = struct.unpack('>f', struct_T)
   float_T = calcFloat(data[6:11])
-
-#  struct_rH = struct.pack('>BBBB', data[12], data[13], data[15], data[16])
-#  float_rH = struct.unpack('>f', struct_rH)
   float_rH = calcFloat(data[12:17])
 
   if float_co2 <= 0.0 or float_rH <= 0.0:
