@@ -46,14 +46,6 @@ PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
 I2C_BUS = 1
 
-
-deviceOnI2C = call("i2cdetect -y 1 0x61 0x61|grep '\--' -q", shell=True) # grep exits 0 if match found
-if deviceOnI2C:
-  print("I2Cdetect found " + SENSOR_NAME)
-else:
-  print(SENSOR_NAME + " (0x61) not found on I2C bus")
-  exit(1)
-
 def exit_gracefully(a,b):
   print("exit")
   os.path.isfile(LOGFILE) and os.access(LOGFILE, os.W_OK) and os.remove(LOGFILE)
@@ -64,12 +56,17 @@ signal.signal(signal.SIGINT, exit_gracefully)
 signal.signal(signal.SIGTERM, exit_gracefully)
 
 
+deviceOnI2C = call("i2cdetect -y 1 0x61 0x61|grep '\--' -q", shell=True) # grep exits 0 if match found
+if deviceOnI2C:
+  print("I2Cdetect found " + SENSOR_NAME)
+else:
+  print(SENSOR_NAME + " (0x61) not found on I2C bus")
+  exit(1)
 
 pi = pigpio.pi(PIGPIO_HOST)
 if not pi.connected:
-  eprint("no connection to pigpio daemon at " + PIGPIO_HOST + ".")
+  print("no connection to pigpio daemon at " + PIGPIO_HOST + ".")
   exit(1)
-
 
 try:
   pi.i2c_close(0)

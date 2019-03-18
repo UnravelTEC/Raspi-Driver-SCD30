@@ -1,5 +1,7 @@
 [Unit]
 Description=SCD30 CO2/rH/T sensor
+After=pigpiod.service
+Requires=pigpiod.service
 
 [Service]
 User=root
