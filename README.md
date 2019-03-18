@@ -57,22 +57,14 @@ Remember: Maximum I2C speed for SCD30 is 100kHz.
 
 # Run program
 
+For a one-time output:
 ```
-python scd30.py
+python scd30-once.py
 ```
 
 ## installing as a service
 
 ```
-cp scd30.py /usr/local/bin
-cp scd30-service.sh /usr/local/bin
-cp scd30.service /etc/systemd/system/
-systemctl enable scd30.service
-systemctl start scd30.service
+./install.sh
 ```
-the service writes a file /run/scd30 (which resides in RAM) - it is meant to be read out by prometheus.
-
-
-## Todos
-
-pressure value for pressure compensation is currently  done via a constant (972mbar ~ altitude of 300m)
+the service writes a file /run/sensor/scd30/last (which resides in RAM) - it is meant to be read out by prometheus.
