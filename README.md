@@ -82,6 +82,6 @@ python scd30-once.py
 ```
 ./install.sh
 ```
-the service writes a file `/run/sensor/scd30/last` and updates it every second (which resides in RAM) - it is meant to be read out by prometheus.
+the service writes a file `/run/sensors/scd30/last` and updates it every second (which resides in RAM) - it is meant to be read out by prometheus.
 
-To use pressure compensation, provide the pressure in a file named e.g. `/run/sensor/bme280/last` - for details see the source code in the service.py
+To use pressure compensation, provide the pressure in a file named e.g. `/run/sensors/bme280/last` - for details see the source code in the service.py
