@@ -80,6 +80,8 @@ except:
   eprint("i2c open failed")
   exit(1)
 
+print("connected to pigpio daemon at " + PIGPIO_HOST + ".")
+
 call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
 
 f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
@@ -140,6 +142,7 @@ if read_meas_result == -1:
   eprint("read_meas_interval unsuccessful")
   exit(1)
 
+print("current measurement frequency: " + str(read_meas_result))
 if read_meas_result != 1:
 # if not every 1s, set it
   print("setting interval to 1")
@@ -181,7 +184,11 @@ while True:
   i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
 
   # read ready status
+  deadmancounter = 20
   while True:
+    if deadmancounter == 0:
+      print("20 attempts to get data unsuccessful, exiting")
+      exit(1)
     ret = i2cWrite([0x02, 0x02])
     if ret == -1:
       exit(1)
@@ -189,6 +196,7 @@ while True:
     data = read_n_bytes(3)
     if data == False:
       time.sleep(0.1)
+      deadmancounter -= 1
       continue
 
     if data[1] == 1:
@@ -197,6 +205,7 @@ while True:
     else:
       #eprint(".")
       time.sleep(0.1)
+      deadmancounter -= 1
 
   #read measurement
   i2cWrite([0x03, 0x00])
