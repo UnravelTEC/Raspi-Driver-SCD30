@@ -91,8 +91,6 @@ def calcCRC(TwoBdataArray):
   byteData = ''.join(chr(x) for x in TwoBdataArray)
   return f_crc8(byteData)
 
-# read meas interval (not documented, but works)
-
 def read_n_bytes(n):
   try:
     (count, data) = pi.i2c_read_device(h, n)
@@ -103,7 +101,7 @@ def read_n_bytes(n):
   if count == n:
     return data
   else:
-    eprint("error: read measurement interval didnt return " + str(n) + "B")
+    eprint("error: read measurement interval didnt return " + str(n) + " Byte")
     return False
 
 # takes an array of bytes (integer-array)
@@ -115,7 +113,12 @@ def i2cWrite(data):
     return -1
   return True
 
+def read_firmware_version():
+  i2cWrite([0xD1,0x00])
+  firmware_version = read_n_bytes(3)
+  print("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
 
+# read meas interval (not documented, but works)
 def read_meas_interval():
   ret = i2cWrite([0x46, 0x00])
   if ret == -1:
@@ -144,6 +147,16 @@ def stop_measurement():
   if ret == -1:
     eprint("error: sending stop measurement command unsuccessful")
 
+def reset():
+  print("reset")
+  ret = i2cWrite([0xD3,0x04])
+  if ret == -1:
+    print("reset unsuccessful")
+
+read_firmware_version()
+
+reset()
+time.sleep(0.5)
 
 read_meas_result = read_meas_interval()
 if read_meas_result == -1:
@@ -170,9 +183,9 @@ def calcFloat(sixBArray):
   first = float_values[0]
   return first
 
-pressure_mbar = 972 # 300 metres above sea level
-while True:
+def get_pressure(last_pressure):
   for sensor in PRESSURE_SENSORS: 
+    pressure_mbar = last_pressure
     pressure_filename = SENSOR_FOLDER + sensor + '/last'
     current_pressure = 0
     if os.path.isfile(pressure_filename):
@@ -185,18 +198,30 @@ while True:
             if current_pressure > 300:
               break
       if current_pressure > 300:
-        if pressure_mbar != current_pressure:
-          print('pressure compensation changed from', pressure_mbar,'to', current_pressure)
+        if last_pressure != current_pressure:
+          print('pressure compensation changed from', last_pressure, 'to', current_pressure)
           pressure_mbar = current_pressure
         break
+  return pressure_mbar
 
+def start_cont_measurement(pressure_mbar):
   LSB = 0xFF & pressure_mbar
   MSB = 0xFF & (pressure_mbar >> 8)
-
   i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
 
+pressure_mbar = 972 # 300 metres above sea level
+start_cont_measurement(pressure_mbar)
+last_pressure = pressure_mbar
+while True:
+  new_pressure = get_pressure(last_pressure)
+  if new_pressure != last_pressure:
+    # print("pressure for compensation: " + str(pressure_mbar))
+    start_cont_measurement(new_pressure)
+    last_pressure = new_pressure
+  time.sleep(MEAS_INTERVAL)
+
   # read ready status
-  deadmancounter = 20
+  deadmancounter = 40
   while True:
     if deadmancounter == 0:
       print("20 attempts to get data unsuccessful, exiting")
@@ -242,7 +267,5 @@ while True:
   logfilehandle = open(LOGFILE, "w",1)
   logfilehandle.write(output_string)
   logfilehandle.close()
-
-  time.sleep(0.9)
 
 pi.i2c_close(h)
