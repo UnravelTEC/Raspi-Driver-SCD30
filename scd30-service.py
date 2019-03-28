@@ -41,6 +41,7 @@ SENSOR_FOLDER = '/run/sensors/'
 SENSOR_NAME = 'scd30'
 LOGFILE = SENSOR_FOLDER + SENSOR_NAME + '/last'
 PRESSURE_SENSORS = ['bme280', 'bme680']
+MEAS_INTERVAL = 1 # integer between 1 and 255 (if longer needed, change code below)
 
 PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
@@ -48,6 +49,7 @@ I2C_BUS = 1
 
 def exit_gracefully(a,b):
   print("exit")
+  stop_measurement()
   os.path.isfile(LOGFILE) and os.access(LOGFILE, os.W_OK) and os.remove(LOGFILE)
   pi.i2c_close(h)
   exit(0)
@@ -137,19 +139,29 @@ def read_meas_interval():
   
   return -1
 
+def stop_measurement():
+  ret = i2cWrite([0x01, 0x04])
+  if ret == -1:
+    eprint("error: sending stop measurement command unsuccessful")
+
+
 read_meas_result = read_meas_interval()
 if read_meas_result == -1:
   eprint("read_meas_interval unsuccessful")
   exit(1)
 
-print("current measurement frequency: " + str(read_meas_result))
-if read_meas_result != 1:
+print("current measurement interval: " + str(read_meas_result))
+if read_meas_result != MEAS_INTERVAL:
 # if not every 1s, set it
-  print("setting interval to 1")
-  ret = i2cWrite([0x46, 0x00, 0x00, 0x01, calcCRC([0x00, 0x01])])
+  print("setting interval to " + str(MEAS_INTERVAL))
+  ret = i2cWrite([0x46, 0x00, 0x00, MEAS_INTERVAL, calcCRC([0x00, MEAS_INTERVAL])])
   if ret == -1:
     exit(1)
-  read_meas_interval()
+  read_meas_result = read_meas_interval()
+  if read_meas_result != MEAS_INTERVAL:
+    eprint("setting measurement interval unsuccessful, returned " + str(read_meas_result))
+    exit(1)
+
 
 
 def calcFloat(sixBArray):
