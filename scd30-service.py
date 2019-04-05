@@ -47,6 +47,8 @@ PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
 I2C_BUS = 1
 
+DEBUG = False
+
 def exit_gracefully(a,b):
   print("exit")
   stop_measurement()
@@ -101,9 +103,10 @@ def read_n_bytes(n):
     exit(1)
 
   if count == n:
+    DEBUG and print("read_n_bytes(" + str(n) + ") successful")
     return data
   else:
-    eprint("error: read measurement interval didnt return " + str(n) + "B")
+    eprint("error: read bytes didnt return " + str(n) + " B, but " + str(count) + " B")
     return False
 
 # takes an array of bytes (integer-array)
@@ -171,6 +174,7 @@ def calcFloat(sixBArray):
   return first
 
 pressure_mbar = 972 # 300 metres above sea level
+pressure_changed = True
 while True:
   for sensor in PRESSURE_SENSORS: 
     pressure_filename = SENSOR_FOLDER + sensor + '/last'
@@ -188,12 +192,14 @@ while True:
         if pressure_mbar != current_pressure:
           print('pressure compensation changed from', pressure_mbar,'to', current_pressure)
           pressure_mbar = current_pressure
+          pressure_changed = True
         break
 
-  LSB = 0xFF & pressure_mbar
-  MSB = 0xFF & (pressure_mbar >> 8)
-
-  i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
+  if pressure_changed == True:
+    LSB = 0xFF & pressure_mbar
+    MSB = 0xFF & (pressure_mbar >> 8)
+    i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
+  pressure_changed = False
 
   # read ready status
   deadmancounter = 20
@@ -207,6 +213,7 @@ while True:
 
     data = read_n_bytes(3)
     if data == False:
+      print("read data ready unsuccessful")
       time.sleep(0.1)
       deadmancounter -= 1
       continue
@@ -226,13 +233,17 @@ while True:
   #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
   if data == False:
-    exit(1)
+    print("read data unsuccessful")
+    time.sleep(MEAS_INTERVAL)
+    continue
+  #  exit(1)
 
   float_co2 = calcFloat(data[0:5])
   float_T = calcFloat(data[6:11])
   float_rH = calcFloat(data[12:17])
 
   if float_co2 <= 0.0 or float_rH <= 0.0:
+    print("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH))
     continue
 
   output_string =  'gas_ppm{{sensor="SCD30",gas="CO2"}} {0:.8f}\n'.format( float_co2 )
@@ -243,6 +254,6 @@ while True:
   logfilehandle.write(output_string)
   logfilehandle.close()
 
-  time.sleep(0.9)
+  time.sleep(-0.1 + MEAS_INTERVAL)
 
 pi.i2c_close(h)
