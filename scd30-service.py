@@ -184,7 +184,7 @@ while True:
       for line in pressure_file:
         if line.startswith('pressure_hPa'):
           line_array = line.split()
-          if len(line_array) > 1:
+          if len(line_array) > 1 and (isinstance(line_array[1],float)):
             current_pressure = int(float(line_array[1]))
             if current_pressure > 300:
               break
