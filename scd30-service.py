@@ -41,7 +41,7 @@ SENSOR_FOLDER = '/run/sensors/'
 SENSOR_NAME = 'scd30'
 LOGFILE = SENSOR_FOLDER + SENSOR_NAME + '/last'
 PRESSURE_SENSORS = ['bme280', 'bme680']
-MEAS_INTERVAL = 1 # integer between 1 and 255 (if longer needed, change code below)
+MEAS_INTERVAL = 2 # integer between 1 and 255 (if longer needed, change code below)
 
 PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
