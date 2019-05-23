@@ -93,8 +93,6 @@ def calcCRC(TwoBdataArray):
   byteData = ''.join(chr(x) for x in TwoBdataArray)
   return f_crc8(byteData)
 
-# read meas interval (not documented, but works)
-
 def read_n_bytes(n):
   try:
     (count, data) = pi.i2c_read_device(h, n)
@@ -142,6 +140,30 @@ def read_meas_interval():
   
   return -1
 
+def read_asc_status():
+  ret = i2cWrite([0x53,0x06])
+  if ret == -1:
+    return -1
+
+  data = read_n_bytes(3)
+  if data == False:
+    print("read asc unsuccessful")
+    return -1
+
+  print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
+
+  if data[1] == 1:
+    print("asc enabled")
+    return 1
+
+  if data[1] == 0:
+    print("asc disabled")
+    return 0
+
+  print("asc status unknown")
+  return -1
+
+
 def stop_measurement():
   ret = i2cWrite([0x01, 0x04])
   if ret == -1:
@@ -165,6 +187,16 @@ if read_meas_result != MEAS_INTERVAL:
     eprint("setting measurement interval unsuccessful, returned " + str(read_meas_result))
     exit(1)
 
+
+asc_status = read_asc_status()
+print("asc status: " + str(asc_status))
+if asc_status == 0:
+  #activating ASC
+  print("enabling asc...")
+  i2cWrite([0x53, 0x06, 0x00, 0x01, calcCRC([0x00,0x01])])
+  time.sleep(MEAS_INTERVAL+1)
+  asc_status = read_asc_status()
+  print("asc status: " + str(asc_status))
 
 
 def calcFloat(sixBArray):
