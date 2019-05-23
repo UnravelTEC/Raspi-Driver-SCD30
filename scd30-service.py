@@ -116,6 +116,10 @@ def i2cWrite(data):
     return -1
   return True
 
+def read_firmware_version():
+  i2cWrite([0xD1,0x00])
+  firmware_version = read_n_bytes(3)
+  print("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
 
 def read_meas_interval():
   ret = i2cWrite([0x46, 0x00])
@@ -169,6 +173,13 @@ def stop_measurement():
   if ret == -1:
     eprint("error: sending stop measurement command unsuccessful")
 
+def reset():
+  print("reset")
+  ret = i2cWrite([0xD3,0x04])
+  if ret == -1:
+    print("reset unsuccessful")
+
+read_firmware_version()
 
 read_meas_result = read_meas_interval()
 if read_meas_result == -1:
@@ -205,10 +216,9 @@ def calcFloat(sixBArray):
   first = float_values[0]
   return first
 
-pressure_mbar = 972 # 300 metres above sea level
-pressure_changed = True
-while True:
-  for sensor in PRESSURE_SENSORS: 
+def get_pressure(last_pressure):
+  for sensor in PRESSURE_SENSORS:
+    pressure_mbar = last_pressure
     pressure_filename = SENSOR_FOLDER + sensor + '/last'
     current_pressure = 0
     if os.path.isfile(pressure_filename):
@@ -221,20 +231,29 @@ while True:
             if current_pressure > 300:
               break
       if current_pressure > 300:
-        if pressure_mbar != current_pressure:
-          print('pressure compensation changed from', pressure_mbar,'to', current_pressure)
+        if last_pressure != current_pressure:
+          print('pressure compensation changed from', last_pressure, 'to', current_pressure)
           pressure_mbar = current_pressure
-          pressure_changed = True
         break
+  return pressure_mbar
 
-  if pressure_changed == True:
-    LSB = 0xFF & pressure_mbar
-    MSB = 0xFF & (pressure_mbar >> 8)
-    i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
-  pressure_changed = False
+def start_cont_measurement(pressure_mbar):
+  LSB = 0xFF & pressure_mbar
+  MSB = 0xFF & (pressure_mbar >> 8)
+  i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
+
+pressure_mbar = 972 # 300 metres above sea level
+start_cont_measurement(pressure_mbar)
+last_pressure = pressure_mbar
+while True:
+  new_pressure = get_pressure(last_pressure)
+  if new_pressure != last_pressure:
+    # print("pressure for compensation: " + str(pressure_mbar))
+    start_cont_measurement(new_pressure)
+    last_pressure = new_pressure
 
   # read ready status
-  deadmancounter = 20
+  deadmancounter = 20 * MEAS_INTERVAL
   while True:
     if deadmancounter == 0:
       print("20 attempts to get data unsuccessful, exiting")
