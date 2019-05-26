@@ -154,7 +154,7 @@ def read_asc_status():
     print("read asc unsuccessful")
     return -1
 
-  print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
+  DEBUG and print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
 
   if data[1] == 1:
     print("asc enabled")
