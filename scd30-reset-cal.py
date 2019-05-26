@@ -41,11 +41,13 @@ SENSOR_FOLDER = '/run/sensors/'
 SENSOR_NAME = 'scd30'
 LOGFILE = SENSOR_FOLDER + SENSOR_NAME + '/last'
 PRESSURE_SENSORS = ['bme280', 'bme680']
-MEAS_INTERVAL = 1 # integer between 1 and 255 (if longer needed, change code below)
+MEAS_INTERVAL = 2 # integer between 1 and 255 (if longer needed, change code below)
 
 PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
 I2C_BUS = 1
+
+DEBUG = False
 
 def exit_gracefully(a,b):
   print("exit")
@@ -99,9 +101,10 @@ def read_n_bytes(n):
     exit(1)
 
   if count == n:
+    DEBUG and print("read_n_bytes(" + str(n) + ") successful")
     return data
   else:
-    eprint("error: read measurement interval didnt return " + str(n) + " Byte")
+    eprint("error: read bytes didnt return " + str(n) + " B, but " + str(count) + " B")
     return False
 
 # takes an array of bytes (integer-array)
@@ -118,7 +121,6 @@ def read_firmware_version():
   firmware_version = read_n_bytes(3)
   print("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
 
-# read meas interval (not documented, but works)
 def read_meas_interval():
   ret = i2cWrite([0x46, 0x00])
   if ret == -1:
@@ -142,6 +144,30 @@ def read_meas_interval():
   
   return -1
 
+def read_asc_status():
+  ret = i2cWrite([0x53,0x06])
+  if ret == -1:
+    return -1
+
+  data = read_n_bytes(3)
+  if data == False:
+    print("read asc unsuccessful")
+    return -1
+
+  print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
+
+  if data[1] == 1:
+    print("asc enabled")
+    return 1
+
+  if data[1] == 0:
+    print("asc disabled")
+    return 0
+
+  print("asc status unknown")
+  return -1
+
+
 def stop_measurement():
   ret = i2cWrite([0x01, 0x04])
   if ret == -1:
@@ -154,9 +180,6 @@ def reset():
     print("reset unsuccessful")
 
 read_firmware_version()
-
-reset()
-time.sleep(0.5)
 
 read_meas_result = read_meas_interval()
 if read_meas_result == -1:
@@ -176,6 +199,16 @@ if read_meas_result != MEAS_INTERVAL:
     exit(1)
 
 
+asc_status = read_asc_status()
+print("asc status: " + str(asc_status))
+if asc_status == 0:
+  #activating ASC
+  print("enabling asc...")
+  i2cWrite([0x53, 0x06, 0x00, 0x01, calcCRC([0x00,0x01])])
+  time.sleep(MEAS_INTERVAL+1)
+  asc_status = read_asc_status()
+  print("asc status: " + str(asc_status))
+
 
 def calcFloat(sixBArray):
   struct_float = struct.pack('>BBBB', sixBArray[0], sixBArray[1], sixBArray[3], sixBArray[4])
@@ -184,7 +217,7 @@ def calcFloat(sixBArray):
   return first
 
 def get_pressure(last_pressure):
-  for sensor in PRESSURE_SENSORS: 
+  for sensor in PRESSURE_SENSORS:
     pressure_mbar = last_pressure
     pressure_filename = SENSOR_FOLDER + sensor + '/last'
     current_pressure = 0
@@ -193,7 +226,7 @@ def get_pressure(last_pressure):
       for line in pressure_file:
         if line.startswith('pressure_hPa'):
           line_array = line.split()
-          if len(line_array) > 1:
+          if len(line_array) > 1 and (isinstance(line_array[1],float)):
             current_pressure = int(float(line_array[1]))
             if current_pressure > 300:
               break
@@ -214,23 +247,26 @@ def set_forced_cal():
   LSB = 0xFF & ppm
   MSB = 0xFF & (ppm >> 8)
   i2cWrite([0x52, 0x04, MSB, LSB, calcCRC([MSB,LSB])])
+  if ret == -1:
+    print("setting cal to "+str(ppm)+" unsuccessful")
+    exit(1)
+  print("setting cal to "+str(ppm)+" successful")
 
-set_forced_cal()
-exit(0)
 
 pressure_mbar = 972 # 300 metres above sea level
 start_cont_measurement(pressure_mbar)
 last_pressure = pressure_mbar
-while True:
+
+print("waiting two minutes to stabilize before FRC")
+for frc_warmup_count in range(60):
   new_pressure = get_pressure(last_pressure)
   if new_pressure != last_pressure:
     # print("pressure for compensation: " + str(pressure_mbar))
     start_cont_measurement(new_pressure)
     last_pressure = new_pressure
-  time.sleep(MEAS_INTERVAL)
 
   # read ready status
-  deadmancounter = 40
+  deadmancounter = 20 * MEAS_INTERVAL
   while True:
     if deadmancounter == 0:
       print("20 attempts to get data unsuccessful, exiting")
@@ -241,6 +277,7 @@ while True:
 
     data = read_n_bytes(3)
     if data == False:
+      print("read data ready unsuccessful")
       time.sleep(0.1)
       deadmancounter -= 1
       continue
@@ -260,13 +297,17 @@ while True:
   #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
   if data == False:
-    exit(1)
+    print("read data unsuccessful")
+    time.sleep(MEAS_INTERVAL)
+    continue
+  #  exit(1)
 
   float_co2 = calcFloat(data[0:5])
   float_T = calcFloat(data[6:11])
   float_rH = calcFloat(data[12:17])
 
   if float_co2 <= 0.0 or float_rH <= 0.0:
+    print("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH))
     continue
 
   output_string =  'gas_ppm{{sensor="SCD30",gas="CO2"}} {0:.8f}\n'.format( float_co2 )
@@ -276,5 +317,9 @@ while True:
   logfilehandle = open(LOGFILE, "w",1)
   logfilehandle.write(output_string)
   logfilehandle.close()
+
+  time.sleep(-0.1 + MEAS_INTERVAL)
+
+set_forced_cal()
 
 pi.i2c_close(h)
