@@ -210,7 +210,7 @@ def start_cont_measurement(pressure_mbar):
   i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
 
 def set_forced_cal():
-  ppm = 404
+  ppm = 415
   LSB = 0xFF & ppm
   MSB = 0xFF & (ppm >> 8)
   i2cWrite([0x52, 0x04, MSB, LSB, calcCRC([MSB,LSB])])
