@@ -36,6 +36,11 @@ from subprocess import call
 
 def eprint(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
+  sys.stderr.flush()
+
+def flprint(*args, **kwargs):
+  print(*args, **kwargs)
+  sys.stdout.flush()
 
 SENSOR_FOLDER = '/run/sensors/'
 SENSOR_NAME = 'scd30'
@@ -50,17 +55,23 @@ I2C_BUS = 1
 DEBUG = False
 
 def exit_gracefully(a,b):
-  print("exit")
+  flprint("exiting gracefully...")
   stop_measurement()
+  flprint("measurement stopped")
   os.path.isfile(LOGFILE) and os.access(LOGFILE, os.W_OK) and os.remove(LOGFILE)
+  flprint("sensor value files cleared")
   pi.i2c_close(h)
+  flprint("i2c handle closed, exit 0")
   exit(0)
 
 def exit_hard():
-  print("exiting")
+  flprint("exiting hard...")
   reset()
+  flprint("resetted")
   os.path.isfile(LOGFILE) and os.access(LOGFILE, os.W_OK) and os.remove(LOGFILE)
+  flprint("sensor value files cleared")
   pi.i2c_close(h)
+  flprint("i2c handle closed, exit 1")
   exit(1)
 
 signal.signal(signal.SIGINT, exit_gracefully)
@@ -69,14 +80,14 @@ signal.signal(signal.SIGTERM, exit_gracefully)
 
 deviceOnI2C = call("i2cdetect -y 1 0x61 0x61|grep '\--' -q", shell=True) # grep exits 0 if match found
 if deviceOnI2C:
-  print("I2Cdetect found " + SENSOR_NAME)
+  flprint("I2Cdetect found " + SENSOR_NAME)
 else:
-  print(SENSOR_NAME + " (0x61) not found on I2C bus")
+  flprint(SENSOR_NAME + " (0x61) not found on I2C bus")
   exit(1)
 
 pi = pigpio.pi(PIGPIO_HOST)
 if not pi.connected:
-  print("no connection to pigpio daemon at " + PIGPIO_HOST + ".")
+  flprint("no connection to pigpio daemon at " + PIGPIO_HOST + ".")
   exit(1)
 
 try:
@@ -88,10 +99,10 @@ except:
 try:
   h = pi.i2c_open(I2C_BUS, I2C_SLAVE)
 except:
-  eprint("i2c open failed")
+  eprint("i2c open failed") and sys.stdout.flush()
   exit(1)
 
-print("connected to pigpio daemon at " + PIGPIO_HOST + ".")
+flprint("connected to pigpio daemon at " + PIGPIO_HOST + ".")
 
 call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
 
@@ -126,7 +137,7 @@ def i2cWrite(data):
 def read_firmware_version():
   i2cWrite([0xD1,0x00])
   firmware_version = read_n_bytes(3)
-  print("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
+  flprint("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
 
 # read meas interval (not documented, but works)
 def read_meas_interval():
@@ -159,20 +170,20 @@ def read_asc_status():
 
   data = read_n_bytes(3)
   if data == False:
-    print("read asc unsuccessful")
+    flprint("read asc unsuccessful")
     return -1
 
   DEBUG and print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
 
   if data[1] == 1:
-    print("asc enabled")
+    flprint("asc enabled")
     return 1
 
   if data[1] == 0:
-    print("asc disabled")
+    flprint("asc disabled")
     return 0
 
-  print("asc status unknown")
+  flprint("asc status unknown")
   return -1
 
 
@@ -182,10 +193,10 @@ def stop_measurement():
     eprint("error: sending stop measurement command unsuccessful")
 
 def reset():
-  print("reset")
+  flprint("reset")
   ret = i2cWrite([0xD3,0x04])
   if ret == -1:
-    print("reset unsuccessful")
+    flprint("reset unsuccessful")
     return
   time.sleep(0.5)
 
@@ -196,10 +207,10 @@ if read_meas_result == -1:
   eprint("read_meas_interval unsuccessful")
   exit_hard()
 
-print("current measurement interval: " + str(read_meas_result))
+flprint("current measurement interval: " + str(read_meas_result))
 if read_meas_result != MEAS_INTERVAL:
 # if not every 1s, set it
-  print("setting interval to " + str(MEAS_INTERVAL))
+  flprint("setting interval to " + str(MEAS_INTERVAL))
   ret = i2cWrite([0x46, 0x00, 0x00, MEAS_INTERVAL, calcCRC([0x00, MEAS_INTERVAL])])
   if ret == -1:
     exit_hard()
@@ -209,14 +220,12 @@ if read_meas_result != MEAS_INTERVAL:
     exit_hard()
 
 asc_status = read_asc_status()
-print("asc status: " + str(asc_status))
 if asc_status == 0:
   #activating ASC
-  print("enabling asc...")
+  flprint("enabling asc...")
   i2cWrite([0x53, 0x06, 0x00, 0x01, calcCRC([0x00,0x01])])
   time.sleep(MEAS_INTERVAL+1)
   asc_status = read_asc_status()
-  print("asc status: " + str(asc_status))
 
 
 def calcFloat(sixBArray):
@@ -241,7 +250,7 @@ def get_pressure(last_pressure):
               break
       if current_pressure > 300:
         if last_pressure != current_pressure:
-          print('pressure compensation changed from', last_pressure, 'to', current_pressure)
+          flprint('pressure compensation changed from', last_pressure, 'to', current_pressure)
           pressure_mbar = current_pressure
         break
   return pressure_mbar
@@ -266,7 +275,7 @@ while True:
 
   while True:
     if deadmancounter == 0:
-      print("20 attempts to get data unsuccessful, exiting")
+      flprint("20 attempts to get data unsuccessful, exiting")
       exit_hard()
     ret = i2cWrite([0x02, 0x02])
     if ret == -1:
@@ -274,7 +283,7 @@ while True:
 
     data = read_n_bytes(3)
     if data == False:
-      print("read data ready unsuccessful")
+      flprint("read data ready unsuccessful")
       time.sleep(0.1)
       deadmancounter -= 1
       continue
@@ -294,7 +303,7 @@ while True:
   #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
   if data == False:
-    print("read data unsuccessful")
+    flprint("read data unsuccessful")
     time.sleep(MEAS_INTERVAL)
     continue
 
@@ -303,7 +312,7 @@ while True:
   float_rH = calcFloat(data[12:17])
 
   if float_co2 <= 0.0 or float_rH <= 0.0:
-    print("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH))
+    flprint("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH))
     continue
 
   output_string =  'gas_ppm{{sensor="SCD30",gas="CO2"}} {0:.8f}\n'.format( float_co2 )
