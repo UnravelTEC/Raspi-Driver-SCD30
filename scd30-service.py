@@ -29,6 +29,7 @@ import pigpio # aptitude install python-pigpio
 import time
 import struct
 import sys
+import math
 import crcmod # aptitude install python-crcmod
 import os, signal
 from subprocess import call
@@ -119,7 +120,18 @@ def read_n_bytes(n):
     exit(1)
 
   if count == n:
-    DEBUG and print("read_n_bytes(" + str(n) + ") successful")
+    DEBUG and flprint("read_n_bytes(" + str(n) + ") successful")
+    if n % 3 == 0:
+      DEBUG and flprint("multiple of 3 bytes read, calc checksum")
+      for i in range(int(n / 3)):
+        offset = i * 3
+        sent_crc = data[offset + 2]
+        calc_crc = calcCRC([data[offset + 0], data[offset + 1]])
+        if sent_crc == calcCRC:
+          DEBUG and flprint("crc " + hex(calc_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 0]) + " OK")
+        else:
+          eprint("crc " + hex(calc_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 0]) + " NOK")
+          return False
     return data
   else:
     eprint("error: read bytes didnt return " + str(n) + " B, but " + str(count) + " B")
@@ -135,32 +147,25 @@ def i2cWrite(data):
   return True
 
 def read_firmware_version():
-  i2cWrite([0xD1,0x00])
-  firmware_version = read_n_bytes(3)
-  flprint("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
+  ret = i2cWrite([0xD1,0x00])
+  if ret == True:
+    firmware_version = read_n_bytes(3)
+    if firmware_version != False:
+      flprint("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
+      return True
+  eprint("firmware version could not be read")
+  return False
 
-# read meas interval (not documented, but works)
 def read_meas_interval():
   ret = i2cWrite([0x46, 0x00])
   if ret == -1:
+    eprint("error: read measurement interval unsuccessful")
     return -1
 
-  try:
-    (count, data) = pi.i2c_read_device(h, 3)
-  except:
-    eprint("error: i2c_read failed")
-    exit_hard()
-
-  if count == 3:
-    if len(data) == 3:
-      interval = int(data[0])*256 + int(data[1])
-      #print "measurement interval: " + str(interval) + "s, checksum " + str(data[2])
-      return interval
-    else:
-      eprint("error: no array len 3 returned, instead " + str(len(data)) + "type: " + str(type(data)))
-  else:
-    eprint("error: read measurement interval didnt return 3B")
-  
+  interval = read_n_bytes(3)
+  if interval != False:
+    return interval
+  eprint("error: read measurement interval didnt return 3B")
   return -1
 
 def read_asc_status():
@@ -173,7 +178,7 @@ def read_asc_status():
     flprint("read asc unsuccessful")
     return -1
 
-  DEBUG and print("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
+  DEBUG and flprint("answer: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
 
   if data[1] == 1:
     flprint("asc enabled")
@@ -185,7 +190,6 @@ def read_asc_status():
 
   flprint("asc status unknown")
   return -1
-
 
 def stop_measurement():
   ret = i2cWrite([0x01, 0x04])
@@ -263,6 +267,7 @@ def start_cont_measurement(pressure_mbar):
 pressure_mbar = 972 # 300 metres above sea level
 start_cont_measurement(pressure_mbar)
 last_pressure = pressure_mbar
+log_once = True
 while True:
   new_pressure = get_pressure(last_pressure)
   if new_pressure != last_pressure:
@@ -300,7 +305,6 @@ while True:
   i2cWrite([0x03, 0x00])
   data = read_n_bytes(18)
     
-  #print "CO2: "  + str(data[0]) +" "+ str(data[1]) +" "+ str(data[3]) +" "+ str(data[4])
 
   if data == False:
     flprint("read data unsuccessful")
@@ -311,8 +315,13 @@ while True:
   float_T = calcFloat(data[6:11])
   float_rH = calcFloat(data[12:17])
 
-  if float_co2 <= 0.0 or float_rH <= 0.0:
-    flprint("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH))
+  if log_once:
+    flprint("CO₂: " + str(float_co2) + ", rH: " + str(float_rH) + ", T: " + str(float_T))
+    log_once = False
+
+  if math.isnan(float_co2) or math.isnan(float_rH) or math.isnan(float_T) or float_co2 <= 0.0 or float_rH <= 0.0:
+    flprint("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH) + ", T: " + str(float_T))
+    log_once = True
     continue
 
   output_string =  'gas_ppm{{sensor="SCD30",gas="CO2"}} {0:.8f}\n'.format( float_co2 )
