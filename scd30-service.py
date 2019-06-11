@@ -106,12 +106,16 @@ except:
 
 flprint("connected to pigpio daemon at " + PIGPIO_HOST + ".")
 
-call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
-
 f_crc8 = crcmod.mkCrcFun(0x131, 0xFF, False, 0x00)
 def calcCRC(TwoBdataArray):
   byteData = ''.join(chr(x) for x in TwoBdataArray)
   return f_crc8(byteData)
+
+def calcFloat(sixBArray):
+  struct_float = struct.pack('>BBBB', sixBArray[0], sixBArray[1], sixBArray[3], sixBArray[4])
+  float_values = struct.unpack('>f', struct_float)
+  first = float_values[0]
+  return first
 
 def read_n_bytes(n):
   try:
@@ -166,6 +170,7 @@ def read_meas_interval():
   ret = read_n_bytes(3)
   if ret != False:
     interval = ret[0] * 256 + ret[1]
+    flprint("current measurement interval: " + str(interval))
     return interval
   eprint("error: read measurement interval didnt return 3B")
   return -1
@@ -206,40 +211,6 @@ def reset():
     return
   time.sleep(0.5)
 
-read_firmware_version()
-
-read_meas_result = read_meas_interval()
-if read_meas_result == -1:
-  eprint("read_meas_interval unsuccessful")
-  exit_hard()
-
-flprint("current measurement interval: " + str(read_meas_result))
-if read_meas_result != MEAS_INTERVAL:
-# if not every 1s, set it
-  flprint("setting interval to " + str(MEAS_INTERVAL))
-  ret = i2cWrite([0x46, 0x00, 0x00, MEAS_INTERVAL, calcCRC([0x00, MEAS_INTERVAL])])
-  if ret == -1:
-    exit_hard()
-  read_meas_result = read_meas_interval()
-  if read_meas_result != MEAS_INTERVAL:
-    eprint("setting measurement interval unsuccessful, returned " + str(read_meas_result))
-    exit_hard()
-
-asc_status = read_asc_status()
-if asc_status == 0:
-  #activating ASC
-  flprint("enabling asc...")
-  i2cWrite([0x53, 0x06, 0x00, 0x01, calcCRC([0x00,0x01])])
-  time.sleep(MEAS_INTERVAL+1)
-  asc_status = read_asc_status()
-
-
-def calcFloat(sixBArray):
-  struct_float = struct.pack('>BBBB', sixBArray[0], sixBArray[1], sixBArray[3], sixBArray[4])
-  float_values = struct.unpack('>f', struct_float)
-  first = float_values[0]
-  return first
-
 def get_pressure(last_pressure):
   for sensor in PRESSURE_SENSORS:
     pressure_mbar = last_pressure
@@ -275,8 +246,31 @@ def start_cont_measurement(pressure_mbar):
     exit_hard()
   print('started cont measurement with ' + str(pressure_mbar) + 'mbar')
 
+read_meas_result = read_meas_interval()
+if read_meas_result != MEAS_INTERVAL:
+# if not every default, set it
+  flprint("setting interval to " + str(MEAS_INTERVAL))
+  ret = i2cWrite([0x46, 0x00, 0x00, MEAS_INTERVAL, calcCRC([0x00, MEAS_INTERVAL])])
+  if ret == -1:
+    exit_hard()
+  read_meas_result = read_meas_interval()
+  if read_meas_result != MEAS_INTERVAL:
+    eprint("setting measurement interval unsuccessful, returned " + str(read_meas_result))
+    exit_hard()
+
+asc_status = read_asc_status()
+if asc_status == 0:
+  #activating ASC
+  flprint("enabling asc...")
+  i2cWrite([0x53, 0x06, 0x00, 0x01, calcCRC([0x00,0x01])])
+  time.sleep(MEAS_INTERVAL+1)
+  asc_status = read_asc_status()
+
+call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
+
 pressure_mbar = 972 # 300 metres above sea level
 last_pressure = pressure_mbar
+start_cont_measurement(last_pressure)
 log_once = True
 while True:
   new_pressure = get_pressure(last_pressure)
