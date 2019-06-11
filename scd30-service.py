@@ -341,6 +341,7 @@ while True:
 
   if data == False:
     flprint("read data unsuccessful")
+    log_once = True
     time.sleep(MEAS_INTERVAL)
     continue
 
