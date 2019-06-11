@@ -153,31 +153,34 @@ def i2cWrite(data):
 
 def read_firmware_version():
   ret = i2cWrite([0xD1,0x00])
+  if ret == -1:
+    eprint("error: sending 'read firmware' unsuccessful")
+    return False
   if ret == True:
     firmware_version = read_n_bytes(3)
     if firmware_version != False:
       flprint("firmware version: " + hex(firmware_version[0]) + hex(firmware_version[1]))
       return True
-  eprint("firmware version could not be read")
+  eprint("error: read firmware version unsuccessful")
   return False
 
 def read_meas_interval():
   ret = i2cWrite([0x46, 0x00])
   if ret == -1:
-    eprint("error: read measurement interval unsuccessful")
+    eprint("error: sending 'read measurement interval' unsuccessful")
     return -1
-
   ret = read_n_bytes(3)
   if ret != False:
     interval = ret[0] * 256 + ret[1]
     flprint("current measurement interval: " + str(interval))
     return interval
-  eprint("error: read measurement interval didnt return 3B")
+  eprint("error: read measurement interval unsuccessful")
   return -1
 
 def read_asc_status():
   ret = i2cWrite([0x53,0x06])
   if ret == -1:
+    eprint("error: sending 'read acs status' unsuccessful")
     return -1
 
   data = read_n_bytes(3)
@@ -195,7 +198,7 @@ def read_asc_status():
     flprint("asc disabled")
     return 0
 
-  flprint("asc status unknown")
+  flprint("asc status unknown, values returned: " + hex(data[0]) + " " + hex(data[1]) + " " + hex(data[2]) + ".")
   return -1
 
 def stop_measurement():
@@ -210,6 +213,28 @@ def reset():
     flprint("reset unsuccessful")
     return
   time.sleep(0.5)
+
+def set_forced_cal(ppm):
+  LSB = 0xFF & ppm
+  MSB = 0xFF & (ppm >> 8)
+  ret = i2cWrite([0x52, 0x04, MSB, LSB, calcCRC([MSB,LSB])])
+  if ret == -1:
+    print("setting cal to "+str(ppm)+" unsuccessful")
+    exit(1)
+  print("setting cal to "+str(ppm)+" successful")
+
+def get_forced_cal():
+  ret = i2cWrite([0x52, 0x04])
+  if ret == -1:
+    eprint("getting frc value unsuccessful")
+    return
+  ret = read_n_bytes(3)
+  if ret != False:
+    value = ret[0] * 256 + ret[1]
+    flprint("current frc value: " + str(value))
+    return
+  eprint("error: read frc value unsuccessful")
+  return
 
 def get_pressure(last_pressure):
   for sensor in PRESSURE_SENSORS:
@@ -268,6 +293,8 @@ if asc_status == 0:
   time.sleep(MEAS_INTERVAL+1)
   asc_status = read_asc_status()
 
+get_forced_cal()
+
 call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
 
 pressure_mbar = 972 # 300 metres above sea level
@@ -287,6 +314,7 @@ while True:
   while True:
     if deadmancounter == 0:
       flprint(str(attempts) + " attempts to get data unsuccessful, exiting")
+      get_forced_cal()
       exit_hard()
     ret = i2cWrite([0x02, 0x02])
     if ret == -1:
@@ -310,7 +338,6 @@ while True:
   #read measurement
   i2cWrite([0x03, 0x00])
   data = read_n_bytes(18)
-    
 
   if data == False:
     flprint("read data unsuccessful")
@@ -327,6 +354,7 @@ while True:
 
   if math.isnan(float_co2) or math.isnan(float_rH) or math.isnan(float_T) or float_co2 <= 0.0 or float_rH <= 0.0:
     flprint("read wrong, co2: " + str(float_co2) + ", rH: " + str(float_rH) + ", T: " + str(float_T))
+    get_forced_cal()
     log_once = True
     continue
 
