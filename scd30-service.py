@@ -53,6 +53,7 @@ PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
 I2C_BUS = 1
 
+DEBUG = True
 DEBUG = False
 
 def exit_gracefully(a,b):
@@ -127,10 +128,10 @@ def read_n_bytes(n):
         offset = i * 3
         sent_crc = data[offset + 2]
         calc_crc = calcCRC([data[offset + 0], data[offset + 1]])
-        if sent_crc == calcCRC:
-          DEBUG and flprint("crc " + hex(calc_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 0]) + " OK")
+        if sent_crc == calc_crc:
+          DEBUG and flprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 1]) + " OK")
         else:
-          eprint("crc " + hex(calc_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 0]) + " NOK")
+          eprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 1]) + " NOK, should be " + hex(calc_crc))
           return False
     return data
   else:
@@ -162,8 +163,9 @@ def read_meas_interval():
     eprint("error: read measurement interval unsuccessful")
     return -1
 
-  interval = read_n_bytes(3)
-  if interval != False:
+  ret = read_n_bytes(3)
+  if ret != False:
+    interval = ret[0] * 256 + ret[1]
     return interval
   eprint("error: read measurement interval didnt return 3B")
   return -1
@@ -245,13 +247,18 @@ def get_pressure(last_pressure):
     current_pressure = 0
     if os.path.isfile(pressure_filename):
       pressure_file = open(pressure_filename,'r')
+      DEBUG and flprint("read from " + pressure_filename)
       for line in pressure_file:
         if line.startswith('pressure_hPa'):
           line_array = line.split()
-          if len(line_array) > 1 and (isinstance(line_array[1],float)):
-            current_pressure = int(float(line_array[1]))
-            if current_pressure > 300:
-              break
+          # print(line_array)
+          if len(line_array) > 1:
+            float_val = float(line_array[1])
+            if(isinstance(float_val,float)):
+              current_pressure = int(float_val)
+              if current_pressure > 300:
+                DEBUG and flprint("got pressure from " + pressure_filename)
+                break
       if current_pressure > 300:
         if last_pressure != current_pressure:
           flprint('pressure compensation changed from', last_pressure, 'to', current_pressure)
@@ -262,25 +269,28 @@ def get_pressure(last_pressure):
 def start_cont_measurement(pressure_mbar):
   LSB = 0xFF & pressure_mbar
   MSB = 0xFF & (pressure_mbar >> 8)
-  i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
+  ret = i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
+  if ret == -1:
+    print("start_cont_measurement unsuccessful")
+    exit_hard()
+  print('started cont measurement with ' + str(pressure_mbar) + 'mbar')
 
 pressure_mbar = 972 # 300 metres above sea level
-start_cont_measurement(pressure_mbar)
 last_pressure = pressure_mbar
 log_once = True
 while True:
   new_pressure = get_pressure(last_pressure)
   if new_pressure != last_pressure:
-    # print("pressure for compensation: " + str(pressure_mbar))
     start_cont_measurement(new_pressure)
     last_pressure = new_pressure
 
   # read ready status
   deadmancounter = 20 * MEAS_INTERVAL
+  attempts = deadmancounter
 
   while True:
     if deadmancounter == 0:
-      flprint("20 attempts to get data unsuccessful, exiting")
+      flprint(str(attempts) + " attempts to get data unsuccessful, exiting")
       exit_hard()
     ret = i2cWrite([0x02, 0x02])
     if ret == -1:
