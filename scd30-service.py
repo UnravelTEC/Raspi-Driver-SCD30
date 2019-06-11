@@ -133,9 +133,9 @@ def read_n_bytes(n):
         sent_crc = data[offset + 2]
         calc_crc = calcCRC([data[offset + 0], data[offset + 1]])
         if sent_crc == calc_crc:
-          DEBUG and flprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 1]) + " OK")
+          DEBUG and flprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) +" "+ hex(data[offset + 1]) + " OK")
         else:
-          eprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) + hex(data[offset + 1]) + " NOK, should be " + hex(calc_crc))
+          eprint(str(i) + ": crc " + hex(sent_crc) + " of " + hex(data[offset + 0]) +" "+ hex(data[offset + 1]) + " NOK, should be " + hex(calc_crc))
           return False
     return data
   else:
@@ -245,6 +245,8 @@ def start_cont_measurement(pressure_mbar):
     print("start_cont_measurement unsuccessful")
     exit_hard()
   print('started cont measurement with ' + str(pressure_mbar) + 'mbar')
+
+read_firmware_version() or exit_hard()
 
 read_meas_result = read_meas_interval()
 if read_meas_result != MEAS_INTERVAL:
