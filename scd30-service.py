@@ -311,10 +311,11 @@ while True:
     start_cont_measurement(new_pressure)
     last_pressure = new_pressure
 
+  time.sleep(-0.1 + MEAS_INTERVAL)
+
   # read ready status
   deadmancounter = 20 * MEAS_INTERVAL
   attempts = deadmancounter
-
   while True:
     if deadmancounter == 0:
       flprint(str(attempts) + " attempts to get data unsuccessful, exiting")
@@ -346,7 +347,6 @@ while True:
   if data == False:
     flprint("read data unsuccessful")
     log_once = True
-    time.sleep(MEAS_INTERVAL)
     continue
 
   float_co2 = calcFloat(data[0:5])
@@ -370,7 +370,5 @@ while True:
   logfilehandle = open(LOGFILE, "w",1)
   logfilehandle.write(output_string)
   logfilehandle.close()
-
-  time.sleep(-0.1 + MEAS_INTERVAL)
 
 pi.i2c_close(h)
