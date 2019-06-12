@@ -122,7 +122,9 @@ def read_n_bytes(n):
     (count, data) = pi.i2c_read_device(h, n)
   except:
     eprint("error: i2c_read failed")
-    exit(1)
+    exit_hard()
+
+  time.sleep(0.02)
 
   if count == n:
     DEBUG and flprint("read_n_bytes(" + str(n) + ") successful")
@@ -148,7 +150,9 @@ def i2cWrite(data):
     pi.i2c_write_device(h, data)
   except:
     eprint("error: i2c_write failed")
+    time.sleep(0.5)
     return -1
+  time.sleep(0.02)
   return True
 
 def read_firmware_version():
@@ -220,7 +224,7 @@ def set_forced_cal(ppm):
   ret = i2cWrite([0x52, 0x04, MSB, LSB, calcCRC([MSB,LSB])])
   if ret == -1:
     print("setting cal to "+str(ppm)+" unsuccessful")
-    exit(1)
+    exit_hard()
   print("setting cal to "+str(ppm)+" successful")
 
 def get_forced_cal():
