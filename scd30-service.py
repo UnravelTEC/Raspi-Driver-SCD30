@@ -240,6 +240,19 @@ def get_forced_cal():
   eprint("error: read frc value unsuccessful")
   return
 
+def get_temp_offset():
+  ret = i2cWrite([0x54, 0x03])
+  if ret == -1:
+    eprint("getting temp offset value unsuccessful")
+    return -1
+  ret = read_n_bytes(3)
+  if ret != False:
+    value = (ret[0] * 256 + ret[1])
+    flprint("current temp offset value: " + str(value))
+    return value
+  eprint("error: read temp offset value unsuccessful")
+  return -1
+
 def get_pressure(last_pressure):
   for sensor in PRESSURE_SENSORS:
     pressure_mbar = last_pressure
@@ -299,13 +312,26 @@ if asc_status == 0:
 
 get_forced_cal()
 
+get_temp_offset()
+
 call(["mkdir", "-p", SENSOR_FOLDER + SENSOR_NAME])
+
+extra_log_interval = 120 #seconds
+extra_log_count = extra_log_interval / MEAS_INTERVAL
+extra_log_i = extra_log_count
 
 pressure_mbar = 972 # 300 metres above sea level
 last_pressure = pressure_mbar
 start_cont_measurement(last_pressure)
 log_once = True
 while True:
+  if extra_log_i == 0:
+    get_forced_cal()
+    get_temp_offset()
+    extra_log_i = extra_log_count
+    log_once = True
+  extra_log_i -= 1
+
   new_pressure = get_pressure(last_pressure)
   if new_pressure != last_pressure:
     start_cont_measurement(new_pressure)
