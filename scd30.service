@@ -1,5 +1,5 @@
 [Unit]
-Description=SCD30 CO2/rH/T sensor
+Description=Sensirion SCD30 CO2/Humidity/Temperature sensor
 After=pigpiod.service
 Requires=pigpiod.service
 
