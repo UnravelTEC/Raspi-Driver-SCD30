@@ -33,6 +33,15 @@ import crcmod # aptitude install python-crcmod
 import os, signal
 from subprocess import call
 
+from argparse import ArgumentParser, RawTextHelpFormatter
+
+parser = ArgumentParser(description='scrape files in /run/sensors in prometheus format and send as json mqtt messages.\n\nDefaults in {curly braces}',formatter_class=RawTextHelpFormatter)
+parser.add_argument("-c", "--value", dest="calvalue", type=int, default=415,
+    help="calibrate to value in ppm (default: 415", metavar="nnn")
+parser.add_argument("-D", "--debug", dest="debug", action='store_true',
+                                    help="print debug messages")
+
+args = parser.parse_args()
 
 def eprint(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
@@ -47,7 +56,7 @@ PIGPIO_HOST = '127.0.0.1'
 I2C_SLAVE = 0x61
 I2C_BUS = 1
 
-DEBUG = False
+DEBUG = args.debug
 
 def exit_gracefully(a,b):
   print("exit")
@@ -243,7 +252,7 @@ def start_cont_measurement(pressure_mbar):
   i2cWrite([0x00, 0x10, MSB, LSB, calcCRC([MSB,LSB])])
 
 def set_forced_cal():
-  ppm = 415
+  ppm = args.calvalue
   LSB = 0xFF & ppm
   MSB = 0xFF & (ppm >> 8)
   i2cWrite([0x52, 0x04, MSB, LSB, calcCRC([MSB,LSB])])
